@@ -16,14 +16,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Instalar Bibliotecas
+      - name: Instalar Monitor Virtual e Bibliotecas
         run: |
+          brew install xvfb
           python -m pip install --upgrade pip
           pip install customtkinter tinytag pyinstaller
 
       - name: Fabricar o Aplicativo (.app)
         run: |
-          pyinstaller --noconsole --onefile --windowed --icon=sync_icon.icns engine_sync_app.py
+          xvfb-run pyinstaller --noconsole --onefile --windowed --icon=sync_icon.icns engine_sync_app.py
 
       - name: Salvar e disponibilizar para Download
         uses: actions/upload-artifact@v3
