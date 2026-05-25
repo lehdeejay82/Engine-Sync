@@ -1,0 +1,32 @@
+name: Criar App para Mac
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Baixar arquivos do repositorio
+        uses: actions/checkout@v3
+
+      - name: Instalar Python no Mac Virtual
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Bibliotecas
+        run: |
+          python -m pip install --upgrade pip
+          pip install customtkinter tinytag pyinstaller
+
+      - name: Fabricar o Aplicativo (.app)
+        run: |
+          pyinstaller --noconsole --onefile --windowed --icon=sync_icon.icns engine_sync_app.py
+
+      - name: Salvar e disponibilizar para Download
+        uses: actions/upload-artifact@v3
+        with:
+          name: EngineSync-Mac
+          path: dist/
