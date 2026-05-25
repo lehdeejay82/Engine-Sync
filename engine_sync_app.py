@@ -14,7 +14,7 @@ import customtkinter as ctk
 
 # ================= CONFIGURAÇÃO DE DOAÇÃO =================
 # Substitua este link pelo seu Linktree, Ko-fi ou página de doações
-URL_DOACAO = "https://linktr.ee/leh.deejay82"
+URL_DOACAO = "https://linktr.ee/SEU_LINK_AQUI"
 # ==========================================================
 
 # ================= DICTIONÁRIO INTERNACIONAL (IDIOMAS) =================
@@ -100,14 +100,11 @@ class EngineSyncApp(ctk.CTk):
         self.geometry("650x480")
         self.resizable(False, False)
         
-        # AQUI ESTÁ A MÁGICA: Tenta carregar o ícone na janela do app
         if os.path.exists("sync_icon.ico"):
             try:
-                # Use iconbitmap para Windows
                 self.iconbitmap("sync_icon.ico")
             except Exception as e:
                 print(f"Erro ao carregar o favicon da janela: {e}")
-                # Fallback para ícone padrão se der erro
                 pass
         
         self.config_file = "engine_sync_config.json"
@@ -119,14 +116,12 @@ class EngineSyncApp(ctk.CTk):
         self.construir_ui()
 
     def construir_ui(self):
-        # Título Verde Engine DJ
         lbl_titulo = ctk.CTkLabel(self, text="ENGINE DJ SYNC", font=ctk.CTkFont(size=24, weight="bold"), text_color="#00E5A3")
         lbl_titulo.pack(pady=(25, 5))
 
         frame_config = ctk.CTkFrame(self)
         frame_config.pack(padx=30, pady=15, fill="x")
 
-        # Pasta de Músicas
         lbl_pasta = ctk.CTkLabel(frame_config, text=self.txt["music_folder"], font=ctk.CTkFont(weight="bold"))
         lbl_pasta.grid(row=0, column=0, padx=15, pady=(15, 2), sticky="w")
         
@@ -136,7 +131,6 @@ class EngineSyncApp(ctk.CTk):
         btn_pasta = ctk.CTkButton(frame_config, text=self.txt["browse"], width=100, fg_color="#00E5A3", text_color="#000000", hover_color="#00b37e", font=ctk.CTkFont(weight="bold"), command=self.procurar_pasta)
         btn_pasta.grid(row=1, column=1, padx=(0, 15), pady=(0, 15))
 
-        # Arquivo DB
         lbl_db = ctk.CTkLabel(frame_config, text=self.txt["db_file"], font=ctk.CTkFont(weight="bold"))
         lbl_db.grid(row=2, column=0, padx=15, pady=(0, 2), sticky="w")
         
@@ -146,7 +140,6 @@ class EngineSyncApp(ctk.CTk):
         btn_db = ctk.CTkButton(frame_config, text=self.txt["browse"], width=100, fg_color="#00E5A3", text_color="#000000", hover_color="#00b37e", font=ctk.CTkFont(weight="bold"), command=self.procurar_db)
         btn_db.grid(row=3, column=1, padx=(0, 15), pady=(0, 20))
 
-        # Progresso
         self.lbl_status = ctk.CTkLabel(self, textvariable=self.status_var, font=ctk.CTkFont(size=14))
         self.lbl_status.pack(pady=(10, 5))
 
@@ -154,13 +147,11 @@ class EngineSyncApp(ctk.CTk):
         self.progress_bar.pack(pady=5)
         self.progress_bar.set(0)
 
-        # Botão Principal Verde Engine
         self.btn_sync = ctk.CTkButton(self, text=self.txt["sync_btn"], font=ctk.CTkFont(size=16, weight="bold"), 
                                       height=45, fg_color="#00E5A3", text_color="#000000", hover_color="#00b37e", 
                                       command=self.iniciar_sincronizacao)
         self.btn_sync.pack(pady=(15, 10), fill="x", padx=60)
 
-        # Botão de Doação no Rodapé (Estilizado como Link)
         self.btn_doacao = ctk.CTkButton(self, text=self.txt["donation_text"], font=ctk.CTkFont(size=12, underline=True),
                                         fg_color="transparent", text_color="#00E5A3", hover_color=None,
                                         hover=False, cursor="hand2", command=self.abrir_link_doacao)
