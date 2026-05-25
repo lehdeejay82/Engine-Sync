@@ -9,25 +9,24 @@ jobs:
 
     steps:
       - name: Baixar arquivos do repositorio
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Instalar Python no Mac Virtual
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Instalar Monitor Virtual e Bibliotecas
+      - name: Instalar Bibliotecas
         run: |
-          brew install xvfb
           python -m pip install --upgrade pip
           pip install customtkinter tinytag pyinstaller
 
       - name: Fabricar o Aplicativo (.app)
         run: |
-          xvfb-run pyinstaller --noconsole --onefile --windowed --icon=sync_icon.icns engine_sync_app.py
+          pyinstaller --noconsole --windowed --icon=sync_icon.icns engine_sync_app.py
 
       - name: Salvar e disponibilizar para Download
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: EngineSync-Mac
           path: dist/
