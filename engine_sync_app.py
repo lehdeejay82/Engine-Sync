@@ -108,12 +108,13 @@ class EngineSyncApp(ctk.CTk):
         # Força a cor de fundo da janela para o cinza escuro blindado
         self.configure(fg_color="#242424")
         
-        if os.path.exists("sync_icon.ico"):
+        # Lógica de ícone multiplataforma (Windows = .ico / Mac = .icns)
+        icone_arquivo = "sync_icon.ico" if os.name == 'nt' else "sync_icon.icns"
+        if os.path.exists(icone_arquivo):
             try:
-                self.iconbitmap("sync_icon.ico")
+                self.iconbitmap(icone_arquivo)
             except Exception as e:
-                print(f"Erro ao carregar o favicon da janela: {e}")
-                pass
+                print(f"Aviso: Ícone nativo não suportado no ambiente atual. ({e})")
         
         self.config_file = "engine_sync_config.json"
         self.path_musicas = ctk.StringVar()
