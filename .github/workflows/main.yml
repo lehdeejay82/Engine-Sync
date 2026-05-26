@@ -2,33 +2,38 @@ name: Build Mac Apps
 
 on: [push]
 
+# Silencia o aviso de depreciação do Node.js forçando a versão 24
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true 
+
 jobs:
   build:
     name: Build ${{ matrix.suffix }}
-    # A sacada: cada versão roda no sistema operacional/processador nativo correto
     runs-on: ${{ matrix.os }} 
     strategy:
       matrix:
         include:
           - target: "modern"
-            arch: "universal2"
-            deploy_target: "12.0" # macOS Monterey para cima
+            arch: "arm64" # Focado 100% em Apple Silicon (M1/M2/M3)
+            deploy_target: "12.0"
             suffix: "Modern"
-            os: macos-14 # Servidor com Apple Silicon (M1/ARM64)
+            os: macos-14
+            python_ver: "3.11" # Python atualizado para melhor suporte a ARM64
           - target: "legacy"
-            arch: "x86_64"
-            deploy_target: "10.13" # High Sierra (Mac 2012)
+            arch: "x86_64" # Focado 100% em processadores Intel
+            deploy_target: "10.13"
             suffix: "Legacy"
-            os: macos-13 # Servidor com Intel nativo para evitar falhas de compilação cruzada
+            os: macos-13
+            python_ver: "3.9" # Mantemos o 3.9 pela retrocompatibilidade extrema
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # Atualizado para a versão mais recente
+        uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v5 # Atualizado para a versão mais recente
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9' # Mantém o 3.9 que é ótimo para retrocompatibilidade no Legacy
+          python-version: ${{ matrix.python_ver }}
 
       - name: Install dependencies
         run: |
@@ -49,9 +54,7 @@ jobs:
           mv dist/engine_sync_app dist/EngineSync_${{ matrix.suffix }}
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4 # Atualizado para a versão mais recente
+        uses: actions/upload-artifact@v4
         with:
           name: EngineSync-${{ matrix.suffix }}
           path: dist/EngineSync_${{ matrix.suffix }}
-          # v4 do upload-artifact não permite que múltiplos jobs escrevam no mesmo artefato.
-          # Como os nomes são diferentes (EngineSync-Modern e EngineSync-Legacy), isso funcionará perfeitamente.
