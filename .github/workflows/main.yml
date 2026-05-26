@@ -4,28 +4,35 @@ on: [push]
 
 jobs:
   build:
-    runs-on: macos-latest
+    name: Build ${{ matrix.suffix }}
+    # A sacada: cada versão roda no sistema operacional/processador nativo correto
+    runs-on: ${{ matrix.os }} 
     strategy:
       matrix:
         include:
           - target: "modern"
             arch: "universal2"
-            deploy_target: "12.0"
+            deploy_target: "12.0" # macOS Monterey para cima
             suffix: "Modern"
+            os: macos-14 # Servidor com Apple Silicon (M1/ARM64)
           - target: "legacy"
             arch: "x86_64"
-            deploy_target: "10.13"
+            deploy_target: "10.13" # High Sierra (Mac 2012)
             suffix: "Legacy"
+            os: macos-13 # Servidor com Intel nativo para evitar falhas de compilação cruzada
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4 # Atualizado para a versão mais recente
+      
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5 # Atualizado para a versão mais recente
         with:
-          python-version: '3.9'
+          python-version: '3.9' # Mantém o 3.9 que é ótimo para retrocompatibilidade no Legacy
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install pyinstaller tinytag customtkinter Pillow
 
       - name: Build with PyInstaller
@@ -38,10 +45,13 @@ jobs:
             --add-data "logo_engine.png:." \
             engine_sync_app.py
           
+          # Renomeia o arquivo gerado para identificar a versão
           mv dist/engine_sync_app dist/EngineSync_${{ matrix.suffix }}
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # Atualizado para a versão mais recente
         with:
           name: EngineSync-${{ matrix.suffix }}
           path: dist/EngineSync_${{ matrix.suffix }}
+          # v4 do upload-artifact não permite que múltiplos jobs escrevam no mesmo artefato.
+          # Como os nomes são diferentes (EngineSync-Modern e EngineSync-Legacy), isso funcionará perfeitamente.
