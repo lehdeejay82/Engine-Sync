@@ -9,12 +9,17 @@ from datetime import datetime
 from collections import defaultdict
 import tkinter as tk
 from tkinter import filedialog, messagebox
+
+try:
+    from PIL import Image
+except ImportError:
+    pass
+
 from tinytag import TinyTag
 import customtkinter as ctk
 
 # ================= CONFIGURAÇÃO DE DOAÇÃO =================
-# Substitua este link pelo seu Linktree, Ko-fi ou página de doações
-URL_DOACAO = "https://linktr.ee/SEU_LINK_AQUI"
+URL_DOACAO = "https://linktr.ee/leh.deejay82"
 # ==========================================================
 
 # ================= DICTIONÁRIO INTERNACIONAL (IDIOMAS) =================
@@ -35,7 +40,7 @@ STRINGS = {
         "error_paths": "Por favor, selecione as pastas antes de iniciar.",
         "success_msg": "Operação finalizada!\nMúsicas novas injetadas: {novas}\nSua coleção foi sincronizada.",
         "collection_name": "- MY COLLECTION",
-        "donation_text": "Este app te ajudou? Que tal me pagar um cafezinho? ☕ Clique aqui."
+        "donation_text": "Este app te ajudou? Gostaria de me incentivar a mante-lo atualizado me pagando um cafezinho? ☕ Clique aqui ☺️"
     },
     "en": {
         "title": "Engine DJ - Mirror Sync",
@@ -97,8 +102,11 @@ class EngineSyncApp(ctk.CTk):
         self.txt = STRINGS[self.lang]
         
         self.title(self.txt["title"])
-        self.geometry("650x480")
+        self.geometry("650x510")
         self.resizable(False, False)
+        
+        # Força a cor de fundo da janela para o cinza escuro blindado
+        self.configure(fg_color="#242424")
         
         if os.path.exists("sync_icon.ico"):
             try:
@@ -116,7 +124,24 @@ class EngineSyncApp(ctk.CTk):
         self.construir_ui()
 
     def construir_ui(self):
-        lbl_titulo = ctk.CTkLabel(self, text="ENGINE DJ SYNC", font=ctk.CTkFont(size=24, weight="bold"), text_color="#00E5A3")
+        # --- ÁREA DA LOGO OU TÍTULO ---
+        img_carregada = False
+        try:
+            # Tenta encontrar a logo na mesma pasta do executável/script
+            img_caminho = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo_engine.png")
+            if os.path.exists(img_caminho):
+                imagem_logo = Image.open(img_caminho)
+                # O tamanho 480x90 mantido conforme seu código base
+                ctk_logo = ctk.CTkImage(light_image=imagem_logo, dark_image=imagem_logo, size=(480, 90))
+                lbl_titulo = ctk.CTkLabel(self, text="", image=ctk_logo)
+                img_carregada = True
+        except Exception as e:
+            print(f"Erro ao carregar a logo: {e}")
+            
+        if not img_carregada:
+            # Fallback para o texto verde se a logo não for encontrada
+            lbl_titulo = ctk.CTkLabel(self, text="ENGINE DJ SYNC", font=ctk.CTkFont(size=24, weight="bold"), text_color="#00E5A3")
+            
         lbl_titulo.pack(pady=(25, 5))
 
         frame_config = ctk.CTkFrame(self)
@@ -218,7 +243,8 @@ class EngineSyncApp(ctk.CTk):
         arquivos_totais = []
         for raiz, _, arquivos in os.walk(pasta):
             for arquivo in arquivos:
-                if arquivo.lower().endswith(('.mp3', '.flac', '.wav', '.aiff')):
+                # Suporte aos formatos principais
+                if arquivo.lower().endswith(('.mp3', '.flac', '.wav', '.aiff', '.m4a')):
                     arquivos_totais.append(os.path.join(raiz, arquivo))
         
         total_arquivos = len(arquivos_totais)
@@ -299,24 +325,48 @@ class EngineSyncApp(ctk.CTk):
         for raiz, diretorios, arquivos in os.walk(pasta):
             parent_id = mapa_playlists.get(raiz.lower(), my_collection_id)
             diretorios.sort(reverse=True) 
-            id_proxima_pasta = 0 
             
+            arquivos_validos = [f for f in arquivos if f.lower().endswith(('.mp3', '.flac', '.wav', '.aiff', '.m4a'))]
+            tem_sub = len(diretorios) > 0
+            tem_arquivos = len(arquivos_validos) > 0
+            
+            id_proxima_pasta = 0 
+            playlist_alvo_id = parent_id
+
+            # 1. Primeiro criamos TODAS as subpastas no banco (de Z para A)
             for d in diretorios:
                 caminho_subpasta = os.path.join(raiz, d)
                 cursor.execute("INSERT INTO Playlist (title, parentListId, isPersisted, nextListId, lastEditTime, isExplicitlyExported) VALUES (?, ?, 1, ?, ?, 1)", (d, parent_id, id_proxima_pasta, data_atual))
                 novo_id = cursor.lastrowid
-                id_proxima_pasta = novo_id
+                id_proxima_pasta = novo_id # Atualiza o elo da corrente
                 mapa_playlists[caminho_subpasta.lower()] = novo_id
                 mapa_hierarquia[novo_id] = parent_id
 
-            arquivos_validos = [f for f in arquivos if f.lower().endswith(('.mp3', '.flac', '.wav', '.aiff'))]
+            # 2. SÓ DEPOIS criamos a Playlist Gêmea. 
+            # Como ela é inserida por último, ela aponta para a pasta "A", assumindo o topo da lista.
+            if tem_sub and tem_arquivos:
+                nome_pasta_atual = os.path.basename(raiz)
+                if raiz == pasta:
+                    nome_pasta_atual = "Faixas Soltas"
+                nome_gemea = f"[ {nome_pasta_atual} ]"
+
+                cursor.execute("""
+                    INSERT INTO Playlist (title, parentListId, isPersisted, nextListId, lastEditTime, isExplicitlyExported)
+                    VALUES (?, ?, 1, ?, ?, 1)
+                """, (nome_gemea, parent_id, id_proxima_pasta, data_atual))
+                gemea_id = cursor.lastrowid
+                
+                mapa_hierarquia[gemea_id] = parent_id
+                playlist_alvo_id = gemea_id
+
+            # 3. Vincular as músicas na playlist correta
             for arquivo in arquivos_validos:
                 caminho_completo = os.path.join(raiz, arquivo)
                 caminho_engine = self.formatar_caminho_engine(caminho_completo, db_path)
                 track_id = mapa_tracks.get(caminho_engine.lower())
                 
                 if track_id:
-                    curr_list_id = parent_id
+                    curr_list_id = playlist_alvo_id
                     while curr_list_id is not None:
                         tracks_por_playlist[curr_list_id][track_id] = caminho_completo
                         curr_list_id = mapa_hierarquia.get(curr_list_id)
