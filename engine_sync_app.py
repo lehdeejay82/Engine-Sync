@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import sqlite3
 import re
@@ -108,13 +109,36 @@ class EngineSyncApp(ctk.CTk):
         # Força a cor de fundo da janela para o cinza escuro blindado
         self.configure(fg_color="#242424")
         
-        # Lógica de ícone multiplataforma (Windows = .ico / Mac = .icns)
-        icone_arquivo = "sync_icon.ico" if os.name == 'nt' else "sync_icon.icns"
-        if os.path.exists(icone_arquivo):
+        # 1. Truque para a Barra de Tarefas (Desvincula do Python no Windows)
+        if os.name == 'nt':
             try:
-                self.iconbitmap(icone_arquivo)
-            except Exception as e:
-                print(f"Aviso: Ícone nativo não suportado no ambiente atual. ({e})")
+                import ctypes
+                myappid = 'lehdeejay.enginesync.1.0'
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+            except Exception:
+                pass
+
+        # 2. Localizador inteligente de recursos para quando compilar em .exe/.app
+        def caminho_recurso(caminho_relativo):
+            try:
+                base_path = sys._MEIPASS
+            except Exception:
+                base_path = os.path.dirname(os.path.abspath(__file__))
+            return os.path.join(base_path, caminho_relativo)
+        
+        self.caminho_recurso = caminho_recurso # Salva a função para usar depois
+
+        # 3. Carregamento de Ícone Inteligente (Windows vs Mac)
+        if sys.platform.startswith('win'): 
+            caminho_icone = self.caminho_recurso("sync_icon.ico")
+            if os.path.exists(caminho_icone):
+                try:
+                    self.iconbitmap(caminho_icone)
+                except Exception:
+                    pass
+        elif sys.platform.startswith('darwin'):
+            # No Mac, o ícone é injetado pelo PyInstaller (.icns), não pela janela.
+            pass 
         
         self.config_file = "engine_sync_config.json"
         self.path_musicas = ctk.StringVar()
@@ -128,11 +152,10 @@ class EngineSyncApp(ctk.CTk):
         # --- ÁREA DA LOGO OU TÍTULO ---
         img_carregada = False
         try:
-            # Tenta encontrar a logo na mesma pasta do executável/script
-            img_caminho = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo_engine.png")
+            # Usa o localizador inteligente para achar a logo
+            img_caminho = self.caminho_recurso("logo_engine.png")
             if os.path.exists(img_caminho):
                 imagem_logo = Image.open(img_caminho)
-                # O tamanho 480x90 mantido conforme seu código base
                 ctk_logo = ctk.CTkImage(light_image=imagem_logo, dark_image=imagem_logo, size=(480, 90))
                 lbl_titulo = ctk.CTkLabel(self, text="", image=ctk_logo)
                 img_carregada = True
@@ -140,7 +163,6 @@ class EngineSyncApp(ctk.CTk):
             print(f"Erro ao carregar a logo: {e}")
             
         if not img_carregada:
-            # Fallback para o texto verde se a logo não for encontrada
             lbl_titulo = ctk.CTkLabel(self, text="ENGINE DJ SYNC", font=ctk.CTkFont(size=24, weight="bold"), text_color="#00E5A3")
             
         lbl_titulo.pack(pady=(25, 5))
@@ -256,142 +278,3 @@ class EngineSyncApp(ctk.CTk):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT uuid FROM Information LIMIT 1")
-        row = cursor.fetchone()
-        db_uuid = row[0] if row else ""
-        data_atual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-        novas_musicas = 0
-        for idx, caminho_completo in enumerate(arquivos_totais):
-            if idx % 20 == 0 or idx == total_arquivos - 1:
-                progresso = (idx + 1) / total_arquivos * 0.5 
-                msg = self.txt["status_fase1"].format(current=idx+1, total=total_arquivos)
-                self.after(0, lambda m=msg, p=progresso: [self.status_var.set(m), self.progress_bar.set(p)])
-
-            caminho_engine = self.formatar_caminho_engine(caminho_completo, db_path)
-            cursor.execute("SELECT id FROM Track WHERE path = ?", (caminho_engine,))
-            if cursor.fetchone():
-                continue 
-
-            try:
-                tag = TinyTag.get(caminho_completo)
-                titulo = getattr(tag, 'title', None) or os.path.basename(caminho_completo)
-                artista = getattr(tag, 'artist', None) or "Desconhecido"
-                album = getattr(tag, 'album', None) or ""
-                bpm = int(getattr(tag, 'bpm', 0) or 0)
-                duracao = int(getattr(tag, 'duration', 0) or 0)
-                try:
-                    ano = int(str(getattr(tag, 'year', 0))[:4]) if getattr(tag, 'year', 0) else 0
-                except ValueError:
-                    ano = 0
-                
-                cursor.execute("""
-                    INSERT INTO Track (path, filename, title, artist, album, length, bpm, year, isAnalyzed, isAvailable)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1)
-                """, (caminho_engine, os.path.basename(caminho_completo), titulo, artista, album, duracao, bpm, ano))
-                novas_musicas += 1
-            except:
-                pass
-
-        self.after(0, lambda: [self.status_var.set(self.txt["status_fase2"]), self.progress_bar.set(0.6)])
-        
-        cursor.execute("SELECT id FROM Playlist WHERE title = ? AND parentListId = 0", (nome_colecao,))
-        row = cursor.fetchone()
-        
-        if not row:
-            cursor.execute("SELECT id FROM Playlist WHERE parentListId = 0 AND nextListId = 0")
-            last_root = cursor.fetchone()
-            cursor.execute("INSERT INTO Playlist (title, parentListId, isPersisted, nextListId, lastEditTime, isExplicitlyExported) VALUES (?, 0, 1, 0, ?, 1)", (nome_colecao, data_atual))
-            my_collection_id = cursor.lastrowid
-            if last_root:
-                cursor.execute("UPDATE Playlist SET nextListId = ? WHERE id = ?", (my_collection_id, last_root[0]))
-        else:
-            my_collection_id = row[0]
-            cte_query = "WITH RECURSIVE descendants(id) AS (SELECT id FROM Playlist WHERE parentListId = ? UNION ALL SELECT p.id FROM Playlist p INNER JOIN descendants d ON p.parentListId = d.id) SELECT id FROM descendants;"
-            cursor.execute(cte_query, (my_collection_id,))
-            descendants = [r[0] for r in cursor.fetchall()]
-            
-            if descendants:
-                placeholders = ','.join('?' * len(descendants))
-                cursor.execute(f"DELETE FROM PlaylistEntity WHERE listId IN ({placeholders})", descendants)
-                cursor.execute(f"DELETE FROM Playlist WHERE id IN ({placeholders})", descendants)
-            cursor.execute("DELETE FROM PlaylistEntity WHERE listId = ?", (my_collection_id,))
-
-        cursor.execute("SELECT id, path FROM Track")
-        mapa_tracks = {l[1].lower(): l[0] for l in cursor.fetchall()}
-
-        mapa_playlists = {pasta.lower(): my_collection_id} 
-        mapa_hierarquia = {my_collection_id: None}
-        tracks_por_playlist = defaultdict(dict)
-
-        for raiz, diretorios, arquivos in os.walk(pasta):
-            parent_id = mapa_playlists.get(raiz.lower(), my_collection_id)
-            diretorios.sort(reverse=True) 
-            
-            arquivos_validos = [f for f in arquivos if f.lower().endswith(('.mp3', '.flac', '.wav', '.aiff', '.m4a'))]
-            tem_sub = len(diretorios) > 0
-            tem_arquivos = len(arquivos_validos) > 0
-            
-            id_proxima_pasta = 0 
-            playlist_alvo_id = parent_id
-
-            # 1. Primeiro criamos TODAS as subpastas no banco (de Z para A)
-            for d in diretorios:
-                caminho_subpasta = os.path.join(raiz, d)
-                cursor.execute("INSERT INTO Playlist (title, parentListId, isPersisted, nextListId, lastEditTime, isExplicitlyExported) VALUES (?, ?, 1, ?, ?, 1)", (d, parent_id, id_proxima_pasta, data_atual))
-                novo_id = cursor.lastrowid
-                id_proxima_pasta = novo_id # Atualiza o elo da corrente
-                mapa_playlists[caminho_subpasta.lower()] = novo_id
-                mapa_hierarquia[novo_id] = parent_id
-
-            # 2. SÓ DEPOIS criamos a Playlist Gêmea. 
-            # Como ela é inserida por último, ela aponta para a pasta "A", assumindo o topo da lista.
-            if tem_sub and tem_arquivos:
-                nome_pasta_atual = os.path.basename(raiz)
-                if raiz == pasta:
-                    nome_pasta_atual = "Faixas Soltas"
-                nome_gemea = f"[ {nome_pasta_atual} ]"
-
-                cursor.execute("""
-                    INSERT INTO Playlist (title, parentListId, isPersisted, nextListId, lastEditTime, isExplicitlyExported)
-                    VALUES (?, ?, 1, ?, ?, 1)
-                """, (nome_gemea, parent_id, id_proxima_pasta, data_atual))
-                gemea_id = cursor.lastrowid
-                
-                mapa_hierarquia[gemea_id] = parent_id
-                playlist_alvo_id = gemea_id
-
-            # 3. Vincular as músicas na playlist correta
-            for arquivo in arquivos_validos:
-                caminho_completo = os.path.join(raiz, arquivo)
-                caminho_engine = self.formatar_caminho_engine(caminho_completo, db_path)
-                track_id = mapa_tracks.get(caminho_engine.lower())
-                
-                if track_id:
-                    curr_list_id = playlist_alvo_id
-                    while curr_list_id is not None:
-                        tracks_por_playlist[curr_list_id][track_id] = caminho_completo
-                        curr_list_id = mapa_hierarquia.get(curr_list_id)
-
-        self.after(0, lambda: [self.status_var.set(self.txt["status_saving"]), self.progress_bar.set(0.85)])
-        
-        for list_id, dict_tracks in tracks_por_playlist.items():
-            id_proxima_entidade = 0 
-            for track_id, caminho in sorted(dict_tracks.items(), key=lambda item: item[1], reverse=True):
-                cursor.execute("INSERT INTO PlaylistEntity (listId, trackId, databaseUuid, nextEntityId, membershipReference) VALUES (?, ?, ?, ?, 0)", (list_id, track_id, db_uuid, id_proxima_entidade))
-                id_proxima_entidade = cursor.lastrowid
-
-        conn.commit()
-        conn.close()
-        
-        self.after(0, lambda: self.finalizar_sync(novas_musicas))
-
-    def finalizar_sync(self, novas_musicas):
-        self.status_var.set(self.txt["status_done"])
-        self.progress_bar.set(1.0)
-        self.btn_sync.configure(state="normal")
-        titulo_msg = "Sucesso" if self.lang == "pt" else "Success"
-        messagebox.showinfo(title=titulo_msg, message=self.txt["success_msg"].format(novas=novas_musicas))
-
-if __name__ == "__main__":
-    app = EngineSyncApp()
-    app.mainloop()
