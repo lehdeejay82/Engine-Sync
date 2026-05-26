@@ -1,32 +1,48 @@
-name: Criar App para Mac
+name: Build Mac Apps
 
-on:
-  workflow_dispatch:
+on: [push]
 
 jobs:
-  build_mac:
+  build:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - target: "modern"
+            arch: "universal2"
+            deploy_target: "12.0" # macOS Monterey para cima
+            suffix: "Modern"
+          - target: "legacy"
+            arch: "x86_64"
+            deploy_target: "10.13" # High Sierra (Mac 2012!)
+            suffix: "Legacy"
 
     steps:
-      - name: Baixar arquivos do repositorio
-        uses: actions/checkout@v4
-
-      - name: Instalar Python no Mac Virtual
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.9'
 
-      - name: Instalar Bibliotecas
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install customtkinter tinytag pyinstaller
+          pip install pyinstaller tinytag customtkinter Pillow
 
-      - name: Fabricar o Aplicativo (.app)
+      - name: Build with PyInstaller
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deploy_target }}
         run: |
-          pyinstaller --noconsole --windowed --icon=sync_icon.icns engine_sync_app.py
+          pyinstaller --noconsole --onefile \
+            --target-architecture ${{ matrix.arch }} \
+            --icon=sync_icon.icns \
+            --add-data "logo_engine.png:." \
+            engine_sync_app.py
+          
+          # Renomeia o arquivo gerado para identificar a versão
+          mv dist/engine_sync_app dist/EngineSync_${{ matrix.suffix }}
 
-      - name: Salvar e disponibilizar para Download
-        uses: actions/upload-artifact@v4
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
         with:
-          name: EngineSync-Mac
-          path: dist/
+          name: EngineSync-${{ matrix.suffix }}
+          path: dist/EngineSync_${{ matrix.suffix }}
