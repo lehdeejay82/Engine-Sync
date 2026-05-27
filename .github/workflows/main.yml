@@ -2,6 +2,9 @@ name: Build Mac Universal App
 
 on: [push]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     name: Build Mac Universal (Intel & M-Series)
@@ -14,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9' # Mantido 3.9 para garantir compatibilidade com os Macs de 2012
+          python-version: '3.9'
 
       - name: Install dependencies
         run: |
@@ -23,7 +26,7 @@ jobs:
 
       - name: Build with PyInstaller
         env:
-          MACOSX_DEPLOYMENT_TARGET: "10.13" # Instrui o compilador a funcionar do macOS High Sierra para frente
+          MACOSX_DEPLOYMENT_TARGET: "10.13"
         run: |
           pyinstaller --noconsole --onefile \
             --target-architecture universal2 \
@@ -31,11 +34,11 @@ jobs:
             --add-data "logo_engine.png:." \
             engine_sync_app.py
           
-          # Renomeia o arquivo gerado para identificar que é a versão definitiva
-          mv dist/engine_sync_app dist/EngineSync_Mac_Universal
+          # Correção: O Mac gera um .app, então precisamos usar a extensão exata
+          mv dist/engine_sync_app.app dist/EngineSync_Mac_Universal.app
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: EngineSync_Mac_Universal
-          path: dist/EngineSync_Mac_Universal
+          path: dist/EngineSync_Mac_Universal.app
