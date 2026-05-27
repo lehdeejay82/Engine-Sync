@@ -10,6 +10,7 @@ from datetime import datetime
 from collections import defaultdict
 import tkinter as tk
 from tkinter import filedialog, messagebox
+import urllib.request
 
 try:
     from PIL import Image
@@ -19,8 +20,16 @@ except ImportError:
 from tinytag import TinyTag
 import customtkinter as ctk
 
-# ================= CONFIGURAÇÃO DE DOAÇÃO =================
+# ================= IDENTIDADE DO APP ======================
+VERSAO_ATUAL = "v1.0.0"
+# ==========================================================
+
+# ================= CONFIGURAÇÃO DE LINKS ==================
 URL_DOACAO = "https://linktr.ee/leh.deejay82"
+
+# TODO: COLOQUE SEU USUÁRIO E NOME DO REPOSITÓRIO AQUI:
+GITHUB_API_URL = "https://api.github.com/repos/lehdeejay82/Engine-Sync/releases/latest"
+GITHUB_RELEASE_URL = "https://github.com/lehdeejay82/Engine-Sync/releases/latest"
 # ==========================================================
 
 # ================= DICTIONÁRIO INTERNACIONAL (IDIOMAS) =================
@@ -41,7 +50,12 @@ STRINGS = {
         "error_paths": "Por favor, selecione as pastas antes de iniciar.",
         "success_msg": "Operação finalizada!\nMúsicas novas injetadas: {novas}\nSua coleção foi sincronizada.",
         "collection_name": "- MY COLLECTION",
-        "donation_text": "Este app te ajudou? Gostaria de me incentivar a mante-lo atualizado me pagando um cafezinho? ☕ Clique aqui ☺️"
+        "donation_text": "Este app te ajudou? Gostaria de me incentivar a mante-lo atualizado me pagando um cafezinho? ☕ Clique aqui ☺️",
+        # Pop-up Update
+        "update_title": "Atualização Disponível!",
+        "update_msg": "Uma nova versão do Engine Sync está disponível!\n\nSua versão: {}\nNova versão: {}\n\nDeseja baixar a atualização agora?",
+        "btn_yes": "Baixar Agora",
+        "btn_no": "Lembrar Depois"
     },
     "en": {
         "title": "Engine DJ - Mirror Sync",
@@ -59,7 +73,12 @@ STRINGS = {
         "error_paths": "Please select the paths before starting.",
         "success_msg": "Operation finished!\nNew tracks injected: {novas}\nYour collection is synced.",
         "collection_name": "- MY COLLECTION",
-        "donation_text": "Did this app help you? How about buying me a coffee? ☕ Click here."
+        "donation_text": "Did this app help you? How about buying me a coffee? ☕ Click here.",
+        # Pop-up Update
+        "update_title": "Update Available!",
+        "update_msg": "A new version of Engine Sync is available!\n\nYour version: {}\nNew version: {}\n\nWould you like to download it now?",
+        "btn_yes": "Download Now",
+        "btn_no": "Remind Me Later"
     },
     "es": {
         "title": "Engine DJ - Mirror Sync",
@@ -77,7 +96,12 @@ STRINGS = {
         "error_paths": "Por favor, seleccione las rutas antes de empezar.",
         "success_msg": "¡Operación finalizada!\nNuevas canciones inyectadas: {novas}\nSu colección está sincronizada.",
         "collection_name": "- MY COLLECTION",
-        "donation_text": "¿Te ayudó esta app? ¿Qué tal si me invitas a un café? ☕ Clic aquí."
+        "donation_text": "¿Te ayudó esta app? ¿Qué tal si me invitas a un café? ☕ Clic aquí.",
+        # Pop-up Update
+        "update_title": "¡Actualización Disponible!",
+        "update_msg": "¡Una nueva versión de Engine Sync está disponible!\n\nTu versión: {}\nNueva versión: {}\n\n¿Quieres descargarla ahora?",
+        "btn_yes": "Descargar Ahora",
+        "btn_no": "Recordarme Más Tarde"
     }
 }
 
@@ -92,6 +116,58 @@ def obter_idioma_sistema():
         pass
     return "en"
 
+# ================= POP-UP DE ATUALIZAÇÃO =================
+class PopUpAtualizacao(ctk.CTkToplevel):
+    def __init__(self, master, txt, versao_nova):
+        super().__init__(master)
+        
+        self.title(txt["update_title"])
+        self.geometry("400x250")
+        self.resizable(False, False)
+        self.configure(fg_color="#242424")
+
+        # Toca o som de notificação nativo do sistema (Aviso de Atualização)
+        if sys.platform.startswith('win'):
+            try:
+                import winsound
+                # Usa MB_ICONEXCLAMATION para soar como um alerta/aviso
+                winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+            except:
+                self.bell()
+        else:
+            self.bell()
+        
+        if sys.platform.startswith('win') and hasattr(master, 'caminho_icone') and os.path.exists(master.caminho_icone):
+            def aplicar_icone():
+                try:
+                    self.iconbitmap(master.caminho_icone)
+                    self.wm_iconbitmap(master.caminho_icone)
+                except Exception:
+                    pass
+            self.after(250, aplicar_icone)
+        
+        self.transient(master)
+        self.grab_set()
+
+        lbl_header = ctk.CTkLabel(self, text=txt["update_title"], font=ctk.CTkFont(size=20, weight="bold"), text_color="#00E5A3")
+        lbl_header.pack(pady=(20, 10))
+
+        lbl_msg = ctk.CTkLabel(self, text=txt["update_msg"].format(VERSAO_ATUAL, versao_nova), font=ctk.CTkFont(size=14))
+        lbl_msg.pack(pady=(5, 20))
+
+        frame_botoes = ctk.CTkFrame(self, fg_color="transparent")
+        frame_botoes.pack(pady=10)
+
+        btn_baixar = ctk.CTkButton(frame_botoes, text=txt["btn_yes"], font=ctk.CTkFont(weight="bold"), fg_color="#00E5A3", text_color="#000000", hover_color="#00b37e", command=self.baixar_atualizacao)
+        btn_baixar.pack(side="left", padx=10)
+
+        btn_fechar = ctk.CTkButton(frame_botoes, text=txt["btn_no"], font=ctk.CTkFont(weight="bold"), fg_color="transparent", border_width=1, border_color="#555555", hover_color="#333333", command=self.destroy)
+        btn_fechar.pack(side="left", padx=10)
+
+    def baixar_atualizacao(self):
+        webbrowser.open(GITHUB_RELEASE_URL)
+        self.destroy()
+
 # ================= INTERFACE GRÁFICA =================
 ctk.set_appearance_mode("Dark")
 
@@ -102,14 +178,12 @@ class EngineSyncApp(ctk.CTk):
         self.lang = obter_idioma_sistema()
         self.txt = STRINGS[self.lang]
         
-        self.title(self.txt["title"])
+        self.title(f"{self.txt['title']} ({VERSAO_ATUAL})") # Adiciona a versão no título da janela
         self.geometry("650x510")
         self.resizable(False, False)
         
-        # Força a cor de fundo da janela para o cinza escuro blindado
         self.configure(fg_color="#242424")
         
-        # 1. Truque para a Barra de Tarefas (Desvincula do Python no Windows)
         if os.name == 'nt':
             try:
                 import ctypes
@@ -118,7 +192,6 @@ class EngineSyncApp(ctk.CTk):
             except Exception:
                 pass
 
-        # 2. Localizador inteligente de recursos para quando compilar em .exe/.app
         def caminho_recurso(caminho_relativo):
             try:
                 base_path = sys._MEIPASS
@@ -126,19 +199,15 @@ class EngineSyncApp(ctk.CTk):
                 base_path = os.path.dirname(os.path.abspath(__file__))
             return os.path.join(base_path, caminho_relativo)
         
-        self.caminho_recurso = caminho_recurso # Salva a função para usar depois
+        self.caminho_recurso = caminho_recurso
+        self.caminho_icone = self.caminho_recurso("sync_icon.ico")
 
-        # 3. Carregamento de Ícone Inteligente (Windows vs Mac)
         if sys.platform.startswith('win'): 
-            caminho_icone = self.caminho_recurso("sync_icon.ico")
-            if os.path.exists(caminho_icone):
+            if os.path.exists(self.caminho_icone):
                 try:
-                    self.iconbitmap(caminho_icone)
+                    self.iconbitmap(self.caminho_icone)
                 except Exception:
                     pass
-        elif sys.platform.startswith('darwin'):
-            # No Mac, o ícone é injetado pelo PyInstaller (.icns), não pela janela.
-            pass 
         
         self.config_file = "engine_sync_config.json"
         self.path_musicas = ctk.StringVar()
@@ -147,12 +216,28 @@ class EngineSyncApp(ctk.CTk):
         
         self.carregar_config()
         self.construir_ui()
+        
+        # Dispara o espião do GitHub em segundo plano ao abrir o app
+        threading.Thread(target=self.verificar_atualizacao, daemon=True).start()
+
+    def verificar_atualizacao(self):
+        try:
+            req = urllib.request.Request(GITHUB_API_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode())
+                    versao_github = data.get("tag_name", "")
+                    
+                    # Se a tag lá (ex: v1.1.0) for diferente da nossa (v1.0.0), dispara o Pop-up
+                    if versao_github and versao_github != VERSAO_ATUAL:
+                        self.after(1000, lambda: PopUpAtualizacao(self, self.txt, versao_github))
+        except Exception:
+            # Se não tiver internet ou o link estiver errado, morre em silêncio
+            pass
 
     def construir_ui(self):
-        # --- ÁREA DA LOGO OU TÍTULO ---
         img_carregada = False
         try:
-            # Usa o localizador inteligente para achar a logo
             img_caminho = self.caminho_recurso("logo_engine.png")
             if os.path.exists(img_caminho):
                 imagem_logo = Image.open(img_caminho)
@@ -160,7 +245,7 @@ class EngineSyncApp(ctk.CTk):
                 lbl_titulo = ctk.CTkLabel(self, text="", image=ctk_logo)
                 img_carregada = True
         except Exception as e:
-            print(f"Erro ao carregar a logo: {e}")
+            pass
             
         if not img_carregada:
             lbl_titulo = ctk.CTkLabel(self, text="ENGINE DJ SYNC", font=ctk.CTkFont(size=24, weight="bold"), text_color="#00E5A3")
@@ -278,3 +363,138 @@ class EngineSyncApp(ctk.CTk):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT uuid FROM Information LIMIT 1")
+        row = cursor.fetchone()
+        db_uuid = row[0] if row else ""
+        data_atual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        novas_musicas = 0
+        for idx, caminho_completo in enumerate(arquivos_totais):
+            if idx % 20 == 0 or idx == total_arquivos - 1:
+                progresso = (idx + 1) / total_arquivos * 0.5 
+                msg = self.txt["status_fase1"].format(current=idx+1, total=total_arquivos)
+                self.after(0, lambda m=msg, p=progresso: [self.status_var.set(m), self.progress_bar.set(p)])
+
+            caminho_engine = self.formatar_caminho_engine(caminho_completo, db_path)
+            cursor.execute("SELECT id FROM Track WHERE path = ?", (caminho_engine,))
+            if cursor.fetchone():
+                continue 
+
+            try:
+                tag = TinyTag.get(caminho_completo)
+                titulo = getattr(tag, 'title', None) or os.path.basename(caminho_completo)
+                artista = getattr(tag, 'artist', None) or "Desconhecido"
+                album = getattr(tag, 'album', None) or ""
+                bpm = int(getattr(tag, 'bpm', 0) or 0)
+                duracao = int(getattr(tag, 'duration', 0) or 0)
+                try:
+                    ano = int(str(getattr(tag, 'year', 0))[:4]) if getattr(tag, 'year', 0) else 0
+                except ValueError:
+                    ano = 0
+                
+                cursor.execute("""
+                    INSERT INTO Track (path, filename, title, artist, album, length, bpm, year, isAnalyzed, isAvailable)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1)
+                """, (caminho_engine, os.path.basename(caminho_completo), titulo, artista, album, duracao, bpm, ano))
+                novas_musicas += 1
+            except:
+                pass
+
+        self.after(0, lambda: [self.status_var.set(self.txt["status_fase2"]), self.progress_bar.set(0.6)])
+        
+        cursor.execute("SELECT id FROM Playlist WHERE title = ? AND parentListId = 0", (nome_colecao,))
+        row = cursor.fetchone()
+        
+        if not row:
+            cursor.execute("SELECT id FROM Playlist WHERE parentListId = 0 AND nextListId = 0")
+            last_root = cursor.fetchone()
+            cursor.execute("INSERT INTO Playlist (title, parentListId, isPersisted, nextListId, lastEditTime, isExplicitlyExported) VALUES (?, 0, 1, 0, ?, 1)", (nome_colecao, data_atual))
+            my_collection_id = cursor.lastrowid
+            if last_root:
+                cursor.execute("UPDATE Playlist SET nextListId = ? WHERE id = ?", (my_collection_id, last_root[0]))
+        else:
+            my_collection_id = row[0]
+            cte_query = "WITH RECURSIVE descendants(id) AS (SELECT id FROM Playlist WHERE parentListId = ? UNION ALL SELECT p.id FROM Playlist p INNER JOIN descendants d ON p.parentListId = d.id) SELECT id FROM descendants;"
+            cursor.execute(cte_query, (my_collection_id,))
+            descendants = [r[0] for r in cursor.fetchall()]
+            
+            if descendants:
+                placeholders = ','.join('?' * len(descendants))
+                cursor.execute(f"DELETE FROM PlaylistEntity WHERE listId IN ({placeholders})", descendants)
+                cursor.execute(f"DELETE FROM Playlist WHERE id IN ({placeholders})", descendants)
+            cursor.execute("DELETE FROM PlaylistEntity WHERE listId = ?", (my_collection_id,))
+
+        cursor.execute("SELECT id, path FROM Track")
+        mapa_tracks = {l[1].lower(): l[0] for l in cursor.fetchall()}
+
+        mapa_playlists = {pasta.lower(): my_collection_id} 
+        mapa_hierarquia = {my_collection_id: None}
+        tracks_por_playlist = defaultdict(dict)
+
+        for raiz, diretorios, arquivos in os.walk(pasta):
+            parent_id = mapa_playlists.get(raiz.lower(), my_collection_id)
+            diretorios.sort(reverse=True) 
+            
+            arquivos_validos = [f for f in arquivos if f.lower().endswith(('.mp3', '.flac', '.wav', '.aiff', '.m4a'))]
+            tem_sub = len(diretorios) > 0
+            tem_arquivos = len(arquivos_validos) > 0
+            
+            id_proxima_pasta = 0 
+            playlist_alvo_id = parent_id
+
+            for d in diretorios:
+                caminho_subpasta = os.path.join(raiz, d)
+                cursor.execute("INSERT INTO Playlist (title, parentListId, isPersisted, nextListId, lastEditTime, isExplicitlyExported) VALUES (?, ?, 1, ?, ?, 1)", (d, parent_id, id_proxima_pasta, data_atual))
+                novo_id = cursor.lastrowid
+                id_proxima_pasta = novo_id 
+                mapa_playlists[caminho_subpasta.lower()] = novo_id
+                mapa_hierarquia[novo_id] = parent_id
+
+            if tem_sub and tem_arquivos:
+                nome_pasta_atual = os.path.basename(raiz)
+                if raiz == pasta:
+                    nome_pasta_atual = "Faixas Soltas"
+                nome_gemea = f"[ {nome_pasta_atual} ]"
+
+                cursor.execute("""
+                    INSERT INTO Playlist (title, parentListId, isPersisted, nextListId, lastEditTime, isExplicitlyExported)
+                    VALUES (?, ?, 1, ?, ?, 1)
+                """, (nome_gemea, parent_id, id_proxima_pasta, data_atual))
+                gemea_id = cursor.lastrowid
+                
+                mapa_hierarquia[gemea_id] = parent_id
+                playlist_alvo_id = gemea_id
+
+            for arquivo in arquivos_validos:
+                caminho_completo = os.path.join(raiz, arquivo)
+                caminho_engine = self.formatar_caminho_engine(caminho_completo, db_path)
+                track_id = mapa_tracks.get(caminho_engine.lower())
+                
+                if track_id:
+                    curr_list_id = playlist_alvo_id
+                    while curr_list_id is not None:
+                        tracks_por_playlist[curr_list_id][track_id] = caminho_completo
+                        curr_list_id = mapa_hierarquia.get(curr_list_id)
+
+        self.after(0, lambda: [self.status_var.set(self.txt["status_saving"]), self.progress_bar.set(0.85)])
+        
+        for list_id, dict_tracks in tracks_por_playlist.items():
+            id_proxima_entidade = 0 
+            for track_id, caminho in sorted(dict_tracks.items(), key=lambda item: item[1], reverse=True):
+                cursor.execute("INSERT INTO PlaylistEntity (listId, trackId, databaseUuid, nextEntityId, membershipReference) VALUES (?, ?, ?, ?, 0)", (list_id, track_id, db_uuid, id_proxima_entidade))
+                id_proxima_entidade = cursor.lastrowid
+
+        conn.commit()
+        conn.close()
+        
+        self.after(0, lambda: self.finalizar_sync(novas_musicas))
+
+    def finalizar_sync(self, novas_musicas):
+        self.status_var.set(self.txt["status_done"])
+        self.progress_bar.set(1.0)
+        self.btn_sync.configure(state="normal")
+        titulo_msg = "Sucesso" if self.lang == "pt" else "Success"
+        messagebox.showinfo(title=titulo_msg, message=self.txt["success_msg"].format(novas=novas_musicas))
+
+if __name__ == "__main__":
+    app = EngineSyncApp()
+    app.mainloop()
