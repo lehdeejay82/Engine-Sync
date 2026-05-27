@@ -1,14 +1,30 @@
-name: Build Mac Universal App
+name: Build Mac Apps
 
 on: [push]
 
+# Silencia os avisos amarelos de versão do Node.js
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true 
 
 jobs:
   build:
-    name: Build Mac Universal (Intel & M-Series)
-    runs-on: macos-latest
+    name: Build ${{ matrix.suffix }}
+    runs-on: ${{ matrix.os }} 
+    strategy:
+      matrix:
+        include:
+          - target: "modern"
+            arch: "arm64" 
+            deploy_target: "12.0"
+            suffix: "Modern"
+            os: macos-14
+            python_ver: "3.11"
+          - target: "legacy"
+            arch: "x86_64" 
+            deploy_target: "10.13"
+            suffix: "Legacy"
+            os: macos-13
+            python_ver: "3.9"
 
     steps:
       - name: Checkout code
@@ -17,7 +33,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: ${{ matrix.python_ver }}
 
       - name: Install dependencies
         run: |
@@ -26,19 +42,19 @@ jobs:
 
       - name: Build with PyInstaller
         env:
-          MACOSX_DEPLOYMENT_TARGET: "10.13"
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deploy_target }}
         run: |
           pyinstaller --noconsole --onefile \
-            --target-architecture universal2 \
+            --target-architecture ${{ matrix.arch }} \
             --icon=sync_icon.icns \
             --add-data "logo_engine.png:." \
             engine_sync_app.py
           
-          # Correção: O Mac gera um .app, então precisamos usar a extensão exata
-          mv dist/engine_sync_app.app dist/EngineSync_Mac_Universal.app
+          # Move o arquivo gerado para identificar a versão
+          mv dist/engine_sync_app dist/EngineSync_${{ matrix.suffix }}
 
-      - name: Upload Artifact
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: EngineSync_Mac_Universal
-          path: dist/EngineSync_Mac_Universal.app
+          name: EngineSync-${{ matrix.suffix }}
+          path: dist/EngineSync_${{ matrix.suffix }}
