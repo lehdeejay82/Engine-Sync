@@ -1,30 +1,11 @@
-name: Build Mac Apps
+name: Build Mac Universal App
 
 on: [push]
 
-# Silencia o aviso de depreciação do Node.js forçando a versão 24
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true 
-
 jobs:
   build:
-    name: Build ${{ matrix.suffix }}
-    runs-on: ${{ matrix.os }} 
-    strategy:
-      matrix:
-        include:
-          - target: "modern"
-            arch: "arm64" # Focado 100% em Apple Silicon (M1/M2/M3)
-            deploy_target: "12.0"
-            suffix: "Modern"
-            os: macos-14
-            python_ver: "3.11" # Python atualizado para melhor suporte a ARM64
-          - target: "legacy"
-            arch: "x86_64" # Focado 100% em processadores Intel
-            deploy_target: "10.13"
-            suffix: "Legacy"
-            os: macos-13
-            python_ver: "3.9" # Mantemos o 3.9 pela retrocompatibilidade extrema
+    name: Build Mac Universal (Intel & M-Series)
+    runs-on: macos-latest
 
     steps:
       - name: Checkout code
@@ -33,7 +14,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python_ver }}
+          python-version: '3.9' # Mantido 3.9 para garantir compatibilidade com os Macs de 2012
 
       - name: Install dependencies
         run: |
@@ -42,19 +23,19 @@ jobs:
 
       - name: Build with PyInstaller
         env:
-          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deploy_target }}
+          MACOSX_DEPLOYMENT_TARGET: "10.13" # Instrui o compilador a funcionar do macOS High Sierra para frente
         run: |
           pyinstaller --noconsole --onefile \
-            --target-architecture ${{ matrix.arch }} \
+            --target-architecture universal2 \
             --icon=sync_icon.icns \
             --add-data "logo_engine.png:." \
             engine_sync_app.py
           
-          # Renomeia o arquivo gerado para identificar a versão
-          mv dist/engine_sync_app dist/EngineSync_${{ matrix.suffix }}
+          # Renomeia o arquivo gerado para identificar que é a versão definitiva
+          mv dist/engine_sync_app dist/EngineSync_Mac_Universal
 
-      - name: Upload Artifacts
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EngineSync-${{ matrix.suffix }}
-          path: dist/EngineSync_${{ matrix.suffix }}
+          name: EngineSync_Mac_Universal
+          path: dist/EngineSync_Mac_Universal
