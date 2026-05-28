@@ -1,0 +1,49 @@
+name: Build Mac Intel (Legacy)
+
+on: [push]
+
+jobs:
+  build-mac-intel:
+    name: Build Mac (x86_64 Intel)
+    # macOS 13 roda em infraestrutura Intel no GitHub Actions
+    runs-on: macos-13 
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: "x64"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller tinytag customtkinter Pillow
+
+      - name: Build with PyInstaller
+        # Garante compatibilidade retroativa para Macs mais antigos
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "10.15" 
+        run: |
+          # Força a arquitetura x86_64 (Intel)
+          pyinstaller --noconsole \
+            --target-architecture x86_64 \
+            --icon=sync_icon.icns \
+            --add-data "logo_engine.png:." \
+            engine_sync_app.py
+          
+          # Renomeia para não confundir com a versão Moderna
+          mv dist/engine_sync_app.app dist/EngineSync_Legacy_Intel.app
+          
+          # Compacta para proteger contra corrupção no upload
+          cd dist
+          zip -r EngineSync_Legacy_Intel.zip EngineSync_Legacy_Intel.app
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EngineSync-Mac-Intel
+          path: dist/EngineSync_Legacy_Intel.zip
