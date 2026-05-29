@@ -4,14 +4,19 @@ workflows:
     instance_type: mac_mini_m1
     
     scripts:
-      - name: Instalar dependencias do Python
+      - name: Instalar Python Oficial (Universal)
         script: |
-          pip3 install pyinstaller customtkinter Pillow requests tinytag
+          # Baixa e instala o Python oficial que contém as duas arquiteturas (Intel + M1)
+          curl -o python-installer.pkg https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg
+          sudo installer -pkg python-installer.pkg -target /
+          
+          # Instala o PyInstaller e suas dependências usando este novo Python Universal
+          /Library/Frameworks/Python.framework/Versions/3.11/bin/pip3 install pyinstaller customtkinter Pillow requests tinytag
           
       - name: Compilar App Mac Universal
         script: |
-          # pyinstaller configurado para embutir o icone .icns e a imagem .png na raiz do app (.)
-          pyinstaller --noconsole --onefile --target-architecture universal2 --icon=sync_icon.icns --add-data "logo_engine.png:." engine_sync_app.py
+          # Usamos --windowed (padrão oficial para Mac) em vez de --onefile
+          /Library/Frameworks/Python.framework/Versions/3.11/bin/pyinstaller --windowed --target-architecture universal2 --icon=sync_icon.icns --add-data "logo_engine.png:." engine_sync_app.py
           
       - name: Compactar o App em ZIP
         script: |
