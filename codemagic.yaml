@@ -1,27 +1,23 @@
 workflows:
-  engine-sync-universal:
-    name: Build Engine Sync Mac Universal
-    instance_type: mac_mini_m1
+  engine-sync-mac:
+    name: Build Engine Sync Mac
+    # Trocamos para a máquina Intel do Codemagic
+    instance_type: mac_pro
     
     scripts:
-      - name: Instalar Python Oficial (Universal)
+      - name: Instalar dependencias do Python
         script: |
-          # Baixa e instala o Python oficial que contém as duas arquiteturas (Intel + M1)
-          curl -o python-installer.pkg https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg
-          sudo installer -pkg python-installer.pkg -target /
+          pip3 install pyinstaller customtkinter Pillow requests tinytag
           
-          # Instala o PyInstaller e suas dependências usando este novo Python Universal
-          /Library/Frameworks/Python.framework/Versions/3.11/bin/pip3 install pyinstaller customtkinter Pillow requests tinytag
-          
-      - name: Compilar App Mac Universal
+      - name: Compilar App Mac
         script: |
-          # Usamos --windowed (padrão oficial para Mac) em vez de --onefile
-          /Library/Frameworks/Python.framework/Versions/3.11/bin/pyinstaller --windowed --target-architecture universal2 --icon=sync_icon.icns --add-data "logo_engine.png:." engine_sync_app.py
+          # Retiramos o universal2. O PyInstaller fará o app Intel limpo (que roda no M1 via Rosetta)
+          pyinstaller --windowed --icon=sync_icon.icns --add-data "logo_engine.png:." engine_sync_app.py
           
       - name: Compactar o App em ZIP
         script: |
           cd dist
-          zip -r EngineSync_MacUniversal.zip engine_sync_app.app
+          zip -r EngineSync_Mac.zip engine_sync_app.app
           
     artifacts:
-      - dist/EngineSync_MacUniversal.zip
+      - dist/EngineSync_Mac.zip
