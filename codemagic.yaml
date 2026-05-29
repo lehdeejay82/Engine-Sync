@@ -1,5 +1,5 @@
 workflows:
-  mac-universal-build:
+  engine-sync-universal:
     name: Build Engine Sync Mac Universal
     instance_type: mac_mini_m1
     
@@ -10,9 +10,8 @@ workflows:
           
       - name: Compilar App Mac Universal
         script: |
-          # ATENÇÃO: Certifique-se de que o seu script se chama exatamente "engine_sync_app.py"
-          # Se o seu arquivo tiver outro nome (ex: main.py), mude o nome no final da linha abaixo!
-          pyinstaller --noconsole --onefile --target-architecture universal2 --icon=sync_icon.icns engine_sync_app.py
+          # pyinstaller configurado para embutir o icone .icns e a imagem .png na raiz do app (.)
+          pyinstaller --noconsole --onefile --target-architecture universal2 --icon=sync_icon.icns --add-data "logo_engine.png:." engine_sync_app.py
           
       - name: Compactar o App em ZIP
         script: |
