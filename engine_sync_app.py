@@ -73,7 +73,7 @@ STRINGS = {
         "error_paths": "Please select the paths before starting.",
         "success_msg": "Operation finished!\nNew tracks injected: {novas}\nYour collection is synced.",
         "collection_name": "- MY COLLECTION",
-        "donation_text": "Did this app help you? How about buying me a coffee? ☕ Click here.",
+        "donation_text": "Did this app help you? Would you like to encourage me to keep it updated by buying me a coffee? ☕ Click here ☺️",
         # Pop-up Update
         "update_title": "Update Available!",
         "update_msg": "A new version of Engine Sync is available!\n\nYour version: {}\nNew version: {}\n\nWould you like to download it now?",
@@ -96,7 +96,7 @@ STRINGS = {
         "error_paths": "Por favor, seleccione las rutas antes de empezar.",
         "success_msg": "¡Operación finalizada!\nNuevas canciones inyectadas: {novas}\nSu colección está sincronizada.",
         "collection_name": "- MY COLLECTION",
-        "donation_text": "¿Te ayudó esta app? ¿Qué tal si me invitas a un café? ☕ Clic aquí.",
+        "donation_text": "¿Te ha resultado útil esta aplicación? ¿Te gustaría animarme a seguir actualizándola invitándome a un café? ☕ Haz clic aquí ☺️",
         # Pop-up Update
         "update_title": "¡Actualización Disponible!",
         "update_msg": "¡Una nueva versión de Engine Sync está disponible!\n\nTu versión: {}\nNueva versión: {}\n\n¿Quieres descargarla ahora?",
