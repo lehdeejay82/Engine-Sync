@@ -50,12 +50,13 @@ STRINGS = {
         "error_paths": "Por favor, selecione as pastas antes de iniciar.",
         "success_msg": "Operação finalizada!\nMúsicas novas injetadas: {novas}\nSua coleção foi sincronizada.",
         "collection_name": "- MY COLLECTION",
-        "donation_text": "Este app te ajudou? Gostaria de me incentivar a mante-lo atualizado me pagando um cafezinho? ☕ Clique aqui ☺️",
+        "donation_text": "Este app te ajudou? Gostaria de me incentivar a mante-lo atualizado\nme pagando um cafezinho? ☕ Clique aqui ☺️",
         # Pop-up Update
         "update_title": "Atualização Disponível!",
         "update_msg": "Uma nova versão do Engine Sync está disponível!\n\nSua versão: {}\nNova versão: {}\n\nDeseja baixar a atualização agora?",
         "btn_yes": "Baixar Agora",
-        "btn_no": "Lembrar Depois"
+        "btn_no": "Lembrar Depois",
+        "success_title": "Sucesso"
     },
     "en": {
         "title": "Engine DJ - Mirror Sync",
@@ -73,12 +74,13 @@ STRINGS = {
         "error_paths": "Please select the paths before starting.",
         "success_msg": "Operation finished!\nNew tracks injected: {novas}\nYour collection is synced.",
         "collection_name": "- MY COLLECTION",
-        "donation_text": "Did this app help you? Would you like to encourage me to keep it updated by buying me a coffee? ☕ Click here ☺️",
+        "donation_text": "Did this app help you? Would you like to encourage me to keep it\nupdated by buying me a coffee? ☕ Click here ☺️",
         # Pop-up Update
         "update_title": "Update Available!",
         "update_msg": "A new version of Engine Sync is available!\n\nYour version: {}\nNew version: {}\n\nWould you like to download it now?",
         "btn_yes": "Download Now",
-        "btn_no": "Remind Me Later"
+        "btn_no": "Remind Me Later",
+        "success_title": "Success"
     },
     "es": {
         "title": "Engine DJ - Mirror Sync",
@@ -87,7 +89,7 @@ STRINGS = {
         "browse": "Buscar",
         "sync_btn": "Iniciar Sincronización",
         "status_idle": "Listo para empezar. Cierre Engine DJ antes.",
-        "status_counting": "Contando archivos de audio...",
+        "status_counting": "Contando arquivos de audio...",
         "status_fase1": "Phase 1: Mapeando archivos ({current}/{total})...",
         "status_fase2": "Phase 2: Reconstruyendo árbol de Playlists...",
         "status_saving": "Phase 3: Guardando en la base de datos...",
@@ -96,23 +98,33 @@ STRINGS = {
         "error_paths": "Por favor, seleccione las rutas antes de empezar.",
         "success_msg": "¡Operación finalizada!\nNuevas canciones inyectadas: {novas}\nSu colección está sincronizada.",
         "collection_name": "- MY COLLECTION",
-        "donation_text": "¿Te ha resultado útil esta aplicación? ¿Te gustaría animarme a seguir actualizándola invitándome a un café? ☕ Haz clic aquí ☺️",
+        "donation_text": "¿Te ha resultado útil esta aplicación? ¿Te gustaría animarme a seguir\nactualizándola invitándome a un café? ☕ Haz clic aquí ☺️",
         # Pop-up Update
         "update_title": "¡Actualización Disponible!",
-        "update_msg": "¡Una nueva versión de Engine Sync está disponible!\n\nTu versión: {}\nNueva versión: {}\n\n¿Quieres descargarla ahora?",
+        "update_msg": "¡Una nova versión de Engine Sync está disponible!\n\nTu versão: {}\nNueva versión: {}\n\n¿Quieres descargarla ahora?",
         "btn_yes": "Descargar Ahora",
-        "btn_no": "Recordarme Más Tarde"
+        "btn_no": "Recordarme Más Tarde",
+        "success_title": "Éxito"
     }
 }
 
 def obter_idioma_sistema():
     try:
-        lang, _ = locale.getdefaultlocale()
+        # Se for Windows, força a leitura do Idioma da Interface (UI)
+        if sys.platform.startswith('win'):
+            import ctypes
+            windll = ctypes.windll.kernel32
+            idioma_id = windll.GetUserDefaultUILanguage()
+            lang = locale.windows_locale.get(idioma_id, 'en_US')
+        else:
+            # Se for Mac/Linux, usa o método padrão
+            lang, _ = locale.getdefaultlocale()
+            
         if lang:
             sigla = lang.split("_")[0].lower()
             if sigla in STRINGS:
                 return sigla
-    except:
+    except Exception:
         pass
     return "en"
 
@@ -179,7 +191,7 @@ class EngineSyncApp(ctk.CTk):
         self.txt = STRINGS[self.lang]
         
         self.title(f"{self.txt['title']} ({VERSAO_ATUAL})") # Adiciona a versão no título da janela
-        self.geometry("650x510")
+        self.geometry("700x540")  # Modificado para 700x540 para evitar cortes nos textos
         self.resizable(False, False)
         
         self.configure(fg_color="#242424")
@@ -204,10 +216,12 @@ class EngineSyncApp(ctk.CTk):
 
         if sys.platform.startswith('win'): 
             if os.path.exists(self.caminho_icone):
-                try:
-                    self.iconbitmap(self.caminho_icone)
-                except Exception:
-                    pass
+                def aplicar_janela_icone():
+                    try:
+                        self.iconbitmap(self.caminho_icone)
+                    except Exception:
+                        pass
+                self.after(200, aplicar_janela_icone)
         
         self.config_file = "engine_sync_config.json"
         self.path_musicas = ctk.StringVar()
@@ -258,7 +272,8 @@ class EngineSyncApp(ctk.CTk):
         lbl_pasta = ctk.CTkLabel(frame_config, text=self.txt["music_folder"], font=ctk.CTkFont(weight="bold"))
         lbl_pasta.grid(row=0, column=0, padx=15, pady=(15, 2), sticky="w")
         
-        entry_pasta = ctk.CTkEntry(frame_config, textvariable=self.path_musicas, width=420)
+        # Aumentado o width para 450 acompanhando o novo tamanho da janela
+        entry_pasta = ctk.CTkEntry(frame_config, textvariable=self.path_musicas, width=450)
         entry_pasta.grid(row=1, column=0, padx=15, pady=(0, 15), sticky="w")
         
         btn_pasta = ctk.CTkButton(frame_config, text=self.txt["browse"], width=100, fg_color="#00E5A3", text_color="#000000", hover_color="#00b37e", font=ctk.CTkFont(weight="bold"), command=self.procurar_pasta)
@@ -267,7 +282,8 @@ class EngineSyncApp(ctk.CTk):
         lbl_db = ctk.CTkLabel(frame_config, text=self.txt["db_file"], font=ctk.CTkFont(weight="bold"))
         lbl_db.grid(row=2, column=0, padx=15, pady=(0, 2), sticky="w")
         
-        entry_db = ctk.CTkEntry(frame_config, textvariable=self.path_db, width=420)
+        # Aumentado o width para 450 acompanhando o novo tamanho da janela
+        entry_db = ctk.CTkEntry(frame_config, textvariable=self.path_db, width=450)
         entry_db.grid(row=3, column=0, padx=15, pady=(0, 20), sticky="w")
         
         btn_db = ctk.CTkButton(frame_config, text=self.txt["browse"], width=100, fg_color="#00E5A3", text_color="#000000", hover_color="#00b37e", font=ctk.CTkFont(weight="bold"), command=self.procurar_db)
@@ -276,7 +292,8 @@ class EngineSyncApp(ctk.CTk):
         self.lbl_status = ctk.CTkLabel(self, textvariable=self.status_var, font=ctk.CTkFont(size=14))
         self.lbl_status.pack(pady=(10, 5))
 
-        self.progress_bar = ctk.CTkProgressBar(self, width=590, height=12, progress_color="#00E5A3")
+        # Aumentado o width para 620 para preencher o novo espaço estético da janela
+        self.progress_bar = ctk.CTkProgressBar(self, width=620, height=12, progress_color="#00E5A3")
         self.progress_bar.pack(pady=5)
         self.progress_bar.set(0)
 
@@ -288,7 +305,7 @@ class EngineSyncApp(ctk.CTk):
         self.btn_doacao = ctk.CTkButton(self, text=self.txt["donation_text"], font=ctk.CTkFont(size=12, underline=True),
                                         fg_color="transparent", text_color="#00E5A3", hover_color=None,
                                         hover=False, cursor="hand2", command=self.abrir_link_doacao)
-        self.btn_doacao.pack(pady=(10, 10))
+        self.btn_doacao.pack(pady=(5, 10))
 
     def abrir_link_doacao(self):
         webbrowser.open(URL_DOACAO)
@@ -492,7 +509,9 @@ class EngineSyncApp(ctk.CTk):
         self.status_var.set(self.txt["status_done"])
         self.progress_bar.set(1.0)
         self.btn_sync.configure(state="normal")
-        titulo_msg = "Sucesso" if self.lang == "pt" else "Success"
+        
+        # Puxa o título diretamente do dicionário de idiomas
+        titulo_msg = self.txt.get("success_title", "Success")
         messagebox.showinfo(title=titulo_msg, message=self.txt["success_msg"].format(novas=novas_musicas))
 
 if __name__ == "__main__":
