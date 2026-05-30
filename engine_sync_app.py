@@ -6,6 +6,7 @@ import re
 import threading
 import locale
 import webbrowser
+import ssl
 from datetime import datetime
 from collections import defaultdict
 import tkinter as tk
@@ -236,17 +237,20 @@ class EngineSyncApp(ctk.CTk):
 
     def verificar_atualizacao(self):
         try:
+            # Cria um passe livre para ignorar a falta de certificados SSL no Mac
+            ctx = ssl._create_unverified_context()
+            
             req = urllib.request.Request(GITHUB_API_URL, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
+            
+            # Injeta o ctx na conexão
+            with urllib.request.urlopen(req, timeout=5, context=ctx) as response:
                 if response.status == 200:
                     data = json.loads(response.read().decode())
                     versao_github = data.get("tag_name", "")
                     
-                    # Se a tag lá (ex: v1.1.0) for diferente da nossa (v1.0.0), dispara o Pop-up
                     if versao_github and versao_github != VERSAO_ATUAL:
                         self.after(1000, lambda: PopUpAtualizacao(self, self.txt, versao_github))
         except Exception:
-            # Se não tiver internet ou o link estiver errado, morre em silêncio
             pass
 
     def construir_ui(self):
